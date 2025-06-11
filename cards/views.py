@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from .models import Cards
 from .controllers import create_cards_from_user_input
 import random
+import json
 
 def get_cards(request):
     cards = Cards.objects.all().values('session_id', 'tittle', 'description')
@@ -12,17 +13,21 @@ def get_cards(request):
 
 @csrf_exempt
 def create_cards(requests):
-    user_input = requests.POST.get("user_input")
-    n_cards = requests.POST.get("n_cards")
+    data = json.loads(requests.body)
+    user_input = data["user_input"]
+    session_id = data["session_id"]
+    n_cards = int(data["n_cards"])
+
+    print("User input:", user_input, n_cards)
 
     cards = create_cards_from_user_input(user_input, n_cards)
     print(cards)
     for card in cards:
         Cards.objects.create(
-            session_id=random.randint(1, 1000),
+            session_id=session_id,
             tittle=card["title"],
             description=card["description"],
         )
 
-    return cards
+    return JsonResponse(cards, safe=False) #cards
 # Create your views here.

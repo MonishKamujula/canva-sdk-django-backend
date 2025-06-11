@@ -1,0 +1,1632 @@
+# addElementAtPoint
+
+API reference for the addElementAtPoint method.
+
+Add element to fixed designs, which use a coordinate-based positioning system.
+
+## Parameters
+
+<Prop.List>
+  <Prop name="element" required type="object">
+    <Tabs>
+          <Tab name="Tables">
+            An element that renders a table.
+
+            <Prop.List>
+              <Prop name="type" required type="string">
+                The type of element.
+
+                This must be `"table"`.
+              </Prop>
+
+              <Prop name="rows" required type="object[]">
+                The rows of the table.
+
+                <PillAccordion defaultExpanded={false} title={<>Properties of <strong>rows</strong></>}>
+                  <Prop.List>
+                    <Prop name="cells" required type="Array<Cell | null | undefined>">
+                      The cells (columns) of the row.
+
+                      Each row must have the same number of cells.
+
+                      This should be either the following object, `null`, or `undefined`.
+
+                      <Prop.List>
+                        <Prop name="attributes" type="CellAttributes">
+                          The attributes of the cell.
+
+                          <PillAccordion defaultExpanded={false} title={<>Properties of <strong>attributes</strong></>}>
+                            <Prop.List>
+                              <Prop name="backgroundColor" type="string">
+                                The background color of the cell, as a hex code.
+                              </Prop>
+
+                              <Prop name="fontSize" type="number">
+                                The size of the text.
+
+                                <Prop.Extras>
+                                  **Minimum**: `1`
+
+                                  **Maximum**: `100`
+
+                                  **Default value**: `16`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="textAlign" type="string">
+                                The alignment of the text.
+
+                                <Prop.Extras>
+                                  **Default value**: `"start"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"start"`
+                                  * `"center"`
+                                  * `"end"`
+                                  * `"justify"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="color" type="string">
+                                The color of the text as a hex code.
+
+                                The hex code must include all six characters and be prefixed with a `#` symbol.
+
+                                <Prop.Extras>
+                                  **Example**
+
+                                  ```ts
+                                  "#ff0099"
+                                  ```
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="fontRef" type="FontRef">
+                                A unique identifier that points to a font asset in Canva's backend.
+                              </Prop>
+
+                              <Prop name="fontWeight" type="FontWeight">
+                                The weight (thickness) of the font.
+
+                                <Prop.Extras>
+                                  **Default value**: `"normal"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"normal"`
+                                  * `"thin"`
+                                  * `"extralight"`
+                                  * `"light"`
+                                  * `"medium"`
+                                  * `"semibold"`
+                                  * `"bold"`
+                                  * `"ultrabold"`
+                                  * `"heavy"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="fontStyle" type="string">
+                                The style of the font.
+
+                                <Prop.Extras>
+                                  **Default value**: `"normal"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"normal"`
+                                  * `"italic"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="decoration" type="string">
+                                The decoration of the font.
+
+                                <Prop.Extras>
+                                  **Default value**: `"none"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"none"`
+                                  * `"underline"`
+                                </Prop.Extras>
+                              </Prop>
+                            </Prop.List>
+                          </PillAccordion>
+                        </Prop>
+
+                        <Prop name="colSpan" type="number">
+                          The number of columns that the cell occupies.
+                        </Prop>
+
+                        <Prop name="rowSpan" type="number">
+                          The number of rows that the cell occupies.
+                        </Prop>
+
+                        <Prop name="type" required type="string">
+                          <Prop.Extras>
+                            **Available values**:
+
+                            * `"empty"`
+                            * `"string"`
+                          </Prop.Extras>
+                        </Prop>
+
+                        <Prop name="value" required="Required if `type` is string" type="string">
+                          The plaintext content of the cell.
+
+                          If an empty string is provided, the `type` will change to `"empty"`.
+                        </Prop>
+                      </Prop.List>
+                    </Prop>
+                  </Prop.List>
+                </PillAccordion>
+              </Prop>
+            </Prop.List>
+          </Tab>
+
+          <Tab name="Images">
+            An element that renders image content and has positional properties.
+
+            <Prop.List>
+              <Prop name="type" required type="string">
+                The type of element.
+
+                This must be `"image"`.
+              </Prop>
+
+              <Prop name="altText" required type="AltText | undefined">
+                A description of the image content.
+
+                Use `undefined` for content with no description.
+
+                <PillAccordion defaultExpanded={false} title={<>Properties of <strong>altText</strong></>}>
+                  <Prop.List>
+                    <Prop name="text" required type="string">
+                      The text content.
+                    </Prop>
+
+                    <Prop name="decorative" required type="boolean | undefined">
+                      Indicates where the alternative text should be displayed.
+
+                      * If `true`, the alternative text will only be displayed in the editor.
+                      * If `false`, the alternative text will be displayed in the editor and in view-only mode.
+                    </Prop>
+                  </Prop.List>
+                </PillAccordion>
+              </Prop>
+
+              <Prop name="top" required type="number">
+                The distance from the top edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="left" required type="number">
+                The distance from the left edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="width" required type="number">
+                A width, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `0`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="height" required type="number">
+                A height, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `0`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="rotation" type="number">
+                A rotation, in degrees.
+
+                <Prop.Extras>
+                  **Minimum**: `-180`
+
+                  **Maximum**: `180`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="ref" required type="ImageRef">
+                a word or 2 two describe the image this should like a str, with no specal chars, for example if you want a dog, "dog"
+              </Prop>
+            </Prop.List>
+          </Tab>
+
+          <Tab name="Videos">
+            An element that renders video content and has positional properties.
+
+            <Prop.List>
+              <Prop name="type" required type="string">
+                The type of element.
+
+                This must be `"video"`.
+              </Prop>
+
+              <Prop name="ref" required type="VideoRef">
+                A unique identifier that points to a video asset in Canva's backend.
+              </Prop>
+
+              <Prop name="altText" required type="AltText | undefined">
+                A description of the video content.
+
+                Use `undefined` for content with no description.
+
+                <PillAccordion defaultExpanded={false} title={<>Properties of <strong>altText</strong></>}>
+                  <Prop.List>
+                    <Prop name="text" required type="string">
+                      The text content.
+                    </Prop>
+
+                    <Prop name="decorative" required type="boolean | undefined">
+                      Indicates where the alternative text should be displayed.
+
+                      * If `true`, the alternative text will only be displayed in the editor.
+                      * If `false`, the alternative text will be displayed in the editor and in view-only mode.
+                    </Prop>
+                  </Prop.List>
+                </PillAccordion>
+              </Prop>
+
+              <Prop name="top" required type="number">
+                The distance from the top edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="left" required type="number">
+                The distance from the left edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="width" required type="number">
+                A width, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `0`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="height" required type="number">
+                A height, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `0`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="rotation" type="number">
+                A rotation, in degrees.
+
+                <Prop.Extras>
+                  **Minimum**: `-180`
+
+                  **Maximum**: `180`
+                </Prop.Extras>
+              </Prop>
+            </Prop.List>
+          </Tab>
+
+          <Tab name="Embeds">
+            An element that renders rich media, such as a YouTube video, and has positional properties.
+
+            <Prop.List>
+              <Prop name="type" required type="string">
+                The type of element.
+
+                This must be `"embed"`.
+              </Prop>
+
+              <Prop name="url" required type="string">
+                The URL of the rich media.
+
+                This URL must be supported by the Iframely API.
+              </Prop>
+
+              <Prop name="top" required type="number">
+                The distance from the top edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="left" required type="number">
+                The distance from the left edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="width" required type="number">
+                A width, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `0`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="height" required type="number">
+                A height, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `0`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="rotation" type="number">
+                A rotation, in degrees.
+
+                <Prop.Extras>
+                  **Minimum**: `-180`
+
+                  **Maximum**: `180`
+                </Prop.Extras>
+              </Prop>
+            </Prop.List>
+          </Tab>
+
+          <Tab name="Text">
+            An element that renders text content and has positional properties.
+
+            <Prop.List>
+              <Prop name="type" required type="string">
+                The type of element.
+
+                This must be `"text"`.
+              </Prop>
+
+              <Prop name="children" required type="string[]">
+                The text content.
+
+                Only the first element in this array is used.
+              </Prop>
+
+              <Prop name="top" required type="number">
+                The distance from the top edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="left" required type="number">
+                The distance from the left edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="fontSize" type="number">
+                The size of the text.
+
+                <Prop.Extras>
+                  **Minimum**: `1`
+
+                  **Maximum**: `100`
+
+                  **Default value**: `16`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="textAlign" type="string">
+                The alignment of the text. For text that go off screen use center to let it wrap.
+
+                <Prop.Extras>
+                  **Default value**: `"start"`
+                </Prop.Extras>
+
+                <Prop.Extras>
+                  **Available values**:
+
+                  * `"start"`
+                  * `"center"`
+                  * `"end"`
+                  * `"justify"`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="color" type="string">
+                The color of the text as a hex code.
+
+                The hex code must include all six characters and be prefixed with a `#` symbol.
+
+                <Prop.Extras>
+                  **Example**
+
+                  ```ts
+                  "#ff0099"
+                  ```
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="fontRef" type="FontRef">
+                A unique identifier that points to a font asset in Canva's backend.
+              </Prop>
+
+              <Prop name="fontWeight" type="FontWeight">
+                The weight (thickness) of the font.
+
+                <Prop.Extras>
+                  **Default value**: `"normal"`
+                </Prop.Extras>
+
+                <Prop.Extras>
+                  **Available values**:
+
+                  * `"normal"`
+                  * `"thin"`
+                  * `"extralight"`
+                  * `"light"`
+                  * `"medium"`
+                  * `"semibold"`
+                  * `"bold"`
+                  * `"ultrabold"`
+                  * `"heavy"`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="fontStyle" type="string">
+                The style of the font.
+
+                <Prop.Extras>
+                  **Default value**: `"normal"`
+                </Prop.Extras>
+
+                <Prop.Extras>
+                  **Available values**:
+
+                  * `"normal"`
+                  * `"italic"`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="decoration" type="string">
+                The decoration of the font.
+
+                <Prop.Extras>
+                  **Default value**: `"none"`
+                </Prop.Extras>
+
+                <Prop.Extras>
+                  **Available values**:
+
+                  * `"none"`
+                  * `"underline"`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="rotation" type="number">
+                A rotation, in degrees.
+
+                <Prop.Extras>
+                  **Minimum**: `-180`
+
+                  **Maximum**: `180`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="width" type="number">
+                The width of the element, in pixels.
+
+                <Prop.Extras>
+                  **Minimum**: `0`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+            </Prop.List>
+          </Tab>
+
+          <Tab name="Shapes">
+            An element that renders a vector shape and has positional properties.
+
+            <Prop.List>
+              <Prop name="type" required type="string">
+                The type of element.
+
+                This must be `"shape"`.
+              </Prop>
+
+              <Prop name="viewBox" required type="ShapeViewBox">
+                Options for configuring the scale and cropping of the shape.
+
+                <PillAccordion defaultExpanded={false} title={<>Properties of <strong>viewBox</strong></>}>
+                  <Prop.List>
+                    <Prop name="top" required type="number">
+                      The distance of the shape from the top edge of the element, in pixels.
+                    </Prop>
+
+                    <Prop name="left" required type="number">
+                      The distance of the shape from the left edge of the element, in pixels.
+                    </Prop>
+
+                    <Prop name="width" required type="number">
+                      The width of the view box, in pixels.
+                    </Prop>
+
+                    <Prop name="height" required type="number">
+                      The height of the view box, in pixels.
+                    </Prop>
+                  </Prop.List>
+                </PillAccordion>
+              </Prop>
+
+              <Prop name="paths" required type="ShapePath[]">
+                The paths that define the structure of the shape.
+
+                * There must be between 1 and 30 paths (inclusive).
+                * The maximum combined size of all paths must not exceed 2kb.
+                * The maximum number of unique fill colors across all paths is 6.
+
+                <PillAccordion defaultExpanded={false} title={<>Properties of <strong>paths</strong></>}>
+                  <Prop.List>
+                    <Prop name="d" required type="string">
+                      The shape of the path.
+
+                      This is similar to the `d` attribute of an SVG's `path` element, with some limitations:
+
+                      * The path must start with an M command.
+                      * The path must not have more than one M command.
+                      * The path must not use the Q command.
+                      * The path must be closed, either by:
+                        * Using a Z command at the end of the path
+                        * Having the last coordinate match the first coordinate
+                    </Prop>
+
+                    <Prop name="fill" required type="Fill">
+                      The appearance of the path's interior.
+
+                      <PillAccordion defaultExpanded={false} title={<>Properties of <strong>fill</strong></>}>
+                        <Prop.List>
+                          <Prop name="dropTarget" type="boolean">
+                            If `true`, users can replace a fill by dropping an image or video onto it.
+                          </Prop>
+
+                          <Prop name="color" type="string">
+                            The color of the fill as a hex code.
+
+                            The hex code must include all six characters and be prefixed with a `#` symbol.
+
+                            <Prop.Extras>
+                              **Example**
+
+                              ```ts
+                              "#ff0099"
+                              ```
+                            </Prop.Extras>
+                          </Prop>
+
+                          <Prop name="asset" type="object">
+                            An image or video to use as the fill.
+
+                            <Tabs>
+                              <Tab name="Images">
+                                An image asset that fills a path's interior.
+
+                                <Prop.List>
+                                  <Prop name="type" required type="string">
+                                    The type of fill.
+
+                                    This must be `"image"`.
+                                  </Prop>
+
+                                  <Prop name="ref" required type="ImageRef">
+                                    A unique identifier that points to an image asset in Canva's backend.
+                                  </Prop>
+
+                                  <Prop name="altText" type="AltText">
+                                    A description of the image content.
+
+                                    Use `undefined` for content with no description.
+
+                                    <PillAccordion defaultExpanded={false} title={<>Properties of <strong>altText</strong></>}>
+                                      <Prop.List>
+                                        <Prop name="text" required type="string">
+                                          The text content.
+                                        </Prop>
+
+                                        <Prop name="decorative" required type="boolean | undefined">
+                                          Indicates where the alternative text should be displayed.
+
+                                          * If `true`, the alternative text will only be displayed in the editor.
+                                          * If `false`, the alternative text will be displayed in the editor and in view-only mode.
+                                        </Prop>
+                                      </Prop.List>
+                                    </PillAccordion>
+                                  </Prop>
+                                </Prop.List>
+                              </Tab>
+
+                              <Tab name="Videos">
+                                A video asset that fills a path's interior.
+
+                                <Prop.List>
+                                  <Prop name="type" required type="string">
+                                    The type of fill.
+
+                                    This must be `"video"`.
+                                  </Prop>
+
+                                  <Prop name="ref" required type="VideoRef">
+                                    A unique identifier that points to a video asset in Canva's backend.
+                                  </Prop>
+
+                                  <Prop name="altText" type="AltText">
+                                    A description of the image content.
+
+                                    Use `undefined` for content with no description.
+
+                                    <PillAccordion defaultExpanded={false} title={<>Properties of <strong>altText</strong></>}>
+                                      <Prop.List>
+                                        <Prop name="text" required type="string">
+                                          The text content.
+                                        </Prop>
+
+                                        <Prop name="decorative" required type="boolean | undefined">
+                                          Indicates where the alternative text should be displayed.
+
+                                          * If `true`, the alternative text will only be displayed in the editor.
+                                          * If `false`, the alternative text will be displayed in the editor and in view-only mode.
+                                        </Prop>
+                                      </Prop.List>
+                                    </PillAccordion>
+                                  </Prop>
+                                </Prop.List>
+                              </Tab>
+                            </Tabs>
+                          </Prop>
+                        </Prop.List>
+                      </PillAccordion>
+                    </Prop>
+
+                    <Prop name="stroke" type="PathStroke">
+                      The outline of the path.
+
+                      <PillAccordion defaultExpanded={false} title={<>Properties of <strong>stroke</strong></>}>
+                        <Prop.List>
+                          <Prop name="weight" required type="number">
+                            The weight (thickness) of the stroke.
+
+                            <Prop.Extras>
+                              **Minimum**: `0`
+
+                              **Maximum**: `100`
+                            </Prop.Extras>
+                          </Prop>
+
+                          <Prop name="color" required type="string">
+                            The color of the stroke as a hex code.
+
+                            The hex code must include all six characters and be prefixed with a `#` symbol.
+
+                            <Prop.Extras>
+                              **Example**
+
+                              ```ts
+                              "#ff0099"
+                              ```
+                            </Prop.Extras>
+                          </Prop>
+
+                          <Prop name="strokeAlign" required type="string">
+                            The alignment of the stroke.
+
+                            This must be `"inset"`.
+                          </Prop>
+                        </Prop.List>
+                      </PillAccordion>
+                    </Prop>
+                  </Prop.List>
+                </PillAccordion>
+              </Prop>
+
+              <Prop name="top" required type="number">
+                The distance from the top edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="left" required type="number">
+                The distance from the left edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="width" required type="number">
+                A width, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `0`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="height" required type="number">
+                A height, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `0`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="rotation" type="number">
+                A rotation, in degrees.
+
+                <Prop.Extras>
+                  **Minimum**: `-180`
+
+                  **Maximum**: `180`
+                </Prop.Extras>
+              </Prop>
+            </Prop.List>
+          </Tab>
+
+          <Tab name="Groups">
+            An element that contains two or more elements and has positional properties.
+
+            <Prop.List>
+              <Prop name="type" required type="string">
+                The type of element.
+
+                This must be `"group"`.
+              </Prop>
+
+              <Prop name="children" required type="GroupContentAtPoint[]">
+                The elements to render within the group.
+
+                * Each element within a group must have dimensions and a position.
+                * The dimensions and positions are relative to the dimensions and positions of the group.
+              </Prop>
+
+              <Prop name="top" required type="number">
+                The distance from the top edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="left" required type="number">
+                The distance from the left edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="width" required type="number">
+                A width, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `0`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="height" required type="number">
+                A height, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `0`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="rotation" type="number">
+                A rotation, in degrees.
+
+                <Prop.Extras>
+                  **Minimum**: `-180`
+
+                  **Maximum**: `180`
+                </Prop.Extras>
+              </Prop>
+            </Prop.List>
+          </Tab>
+
+          <Tab name="Richtext">
+            An element that renders richtext content.
+
+            This type includes properties for controlling the position and dimensions of the
+            element.
+            It will be positioned and sized relative to its parent container.
+            The parent container may be an app element, or the current page.
+
+            <Prop.List>
+              <Prop name="type" required type="string">
+                The type of element.
+
+                This must be `"richtext"`.
+              </Prop>
+
+              <Prop name="range" required type="RichtextRange">
+                The richtext content.
+
+                <PillAccordion defaultExpanded={false} title={<>Properties of <strong>range</strong></>}>
+                  <Prop.List>
+                    <Prop name="formatParagraph" required type="function">
+                      Formats all of the paragraphs that overlap the given bounds.
+
+                      * The `\n` character indicates the end of a paragraph.
+                      * All paragraphs that overlap the provided bounds will be formatted in their entirety.
+
+                      **Parameters**
+
+                      <Prop.List>
+                        <Prop name="bounds" required type="Bounds">
+                          The segment of the range on which to apply the formatting.
+
+                          <PillAccordion defaultExpanded={false} title={<>Properties of <strong>bounds</strong></>}>
+                            <Prop.List>
+                              <Prop name="index" required type="number">
+                                The starting position of the segment.
+
+                                This is zero-based, meaning the first character of the range is at index 0.
+                              </Prop>
+
+                              <Prop name="length" required type="number">
+                                The number of characters in the segment, starting from the index.
+                              </Prop>
+                            </Prop.List>
+                          </PillAccordion>
+                        </Prop>
+
+                        <Prop name="formatting" required type="RichtextFormatting">
+                          The formatting to apply to the paragraph(s).
+
+                          <PillAccordion defaultExpanded={false} title={<>Properties of <strong>formatting</strong></>}>
+                            <Prop.List>
+                              <Prop name="color" type="string">
+                                The color of the text as a hex code.
+
+                                The hex code must include all six characters and be prefixed with a `#` symbol.
+
+                                <Prop.Extras>
+                                  **Example**
+
+                                  ```ts
+                                  "#ff0099"
+                                  ```
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="fontWeight" type="FontWeight">
+                                The weight (thickness) of the font.
+
+                                The available font weights depend on the font.
+
+                                <Prop.Extras>
+                                  **Default value**: `"normal"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"normal"`
+                                  * `"thin"`
+                                  * `"extralight"`
+                                  * `"light"`
+                                  * `"medium"`
+                                  * `"semibold"`
+                                  * `"bold"`
+                                  * `"ultrabold"`
+                                  * `"heavy"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="fontStyle" type="string">
+                                The style of the font.
+
+                                <Prop.Extras>
+                                  **Default value**: `"normal"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"normal"`
+                                  * `"italic"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="decoration" type="string">
+                                The decoration of the text.
+
+                                <Prop.Extras>
+                                  **Default value**: `"none"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"none"`
+                                  * `"underline"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="strikethrough" type="string">
+                                The strikethrough of the text.
+
+                                <Prop.Extras>
+                                  **Default value**: `"none"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"none"`
+                                  * `"strikethrough"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="link" type="string">
+                                An external URL that the text links to.
+                              </Prop>
+
+                              <Prop name="fontRef" type="FontRef">
+                                A unique identifier that points to a font asset in Canva's backend.
+                              </Prop>
+
+                              <Prop name="fontSize" type="number">
+                                The size of the text, in pixels.
+
+                                * In the Canva editor, this number is shown as points (pts), not pixels.
+
+                                <Prop.Extras>
+                                  **Minimum**: `1`
+
+                                  **Maximum**: `100`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="textAlign" type="string">
+                                The alignment of the text.
+
+                                <Prop.Extras>
+                                  **Default value**: `"start"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"start"`
+                                  * `"center"`
+                                  * `"end"`
+                                  * `"justify"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="listLevel" type="number">
+                                The list indentation level of the paragraph.
+                              </Prop>
+
+                              <Prop name="listMarker" type="string">
+                                The appearance of list item markers.
+
+                                This property only has an effect if `listLevel` is greater than 0.
+
+                                <Prop.Extras>
+                                  **Default value**: `"none"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"none"`
+                                  * `"disc"`
+                                  * `"circle"`
+                                  * `"square"`
+                                  * `"decimal"`
+                                  * `"lower-alpha"`
+                                  * `"lower-roman"`
+                                  * `"checked"`
+                                  * `"unchecked"`
+                                </Prop.Extras>
+                              </Prop>
+                            </Prop.List>
+                          </PillAccordion>
+                        </Prop>
+                      </Prop.List>
+
+                      **Returns**
+
+                      `void`
+                    </Prop>
+
+                    <Prop name="formatText" required type="function">
+                      Formats a region of text with inline formatting properties.
+
+                      **Parameters**
+
+                      <Prop.List>
+                        <Prop name="bounds" required type="Bounds">
+                          The segment of the range on which to apply the formatting.
+
+                          <PillAccordion defaultExpanded={false} title={<>Properties of <strong>bounds</strong></>}>
+                            <Prop.List>
+                              <Prop name="index" required type="number">
+                                The starting position of the segment.
+
+                                This is zero-based, meaning the first character of the range is at index 0.
+                              </Prop>
+
+                              <Prop name="length" required type="number">
+                                The number of characters in the segment, starting from the index.
+                              </Prop>
+                            </Prop.List>
+                          </PillAccordion>
+                        </Prop>
+
+                        <Prop name="formatting" required type="InlineFormatting">
+                          The formatting to apply to the text.
+
+                          <PillAccordion defaultExpanded={false} title={<>Properties of <strong>formatting</strong></>}>
+                            <Prop.List>
+                              <Prop name="color" type="string">
+                                The color of the text as a hex code.
+
+                                The hex code must include all six characters and be prefixed with a `#` symbol.
+
+                                <Prop.Extras>
+                                  **Example**
+
+                                  ```ts
+                                  "#ff0099"
+                                  ```
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="fontWeight" type="FontWeight">
+                                The weight (thickness) of the font.
+
+                                The available font weights depend on the font.
+
+                                <Prop.Extras>
+                                  **Default value**: `"normal"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"normal"`
+                                  * `"thin"`
+                                  * `"extralight"`
+                                  * `"light"`
+                                  * `"medium"`
+                                  * `"semibold"`
+                                  * `"bold"`
+                                  * `"ultrabold"`
+                                  * `"heavy"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="fontStyle" type="string">
+                                The style of the font.
+
+                                <Prop.Extras>
+                                  **Default value**: `"normal"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"normal"`
+                                  * `"italic"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="decoration" type="string">
+                                The decoration of the text.
+
+                                <Prop.Extras>
+                                  **Default value**: `"none"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"none"`
+                                  * `"underline"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="strikethrough" type="string">
+                                The strikethrough of the text.
+
+                                <Prop.Extras>
+                                  **Default value**: `"none"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"none"`
+                                  * `"strikethrough"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="link" type="string">
+                                An external URL that the text links to.
+                              </Prop>
+                            </Prop.List>
+                          </PillAccordion>
+                        </Prop>
+                      </Prop.List>
+
+                      **Returns**
+
+                      `void`
+                    </Prop>
+
+                    <Prop name="appendText" required type="function">
+                      Appends the specified characters to the end of the range.
+
+                      **Parameters**
+
+                      <Prop.List>
+                        <Prop name="characters" required type="string">
+                          The characters to append to the richtext range.
+                        </Prop>
+
+                        <Prop name="formatting" type="InlineFormatting">
+                          Options for formatting inline richtext.
+
+                          <PillAccordion defaultExpanded={false} title={<>Properties of <strong>formatting</strong></>}>
+                            <Prop.List>
+                              <Prop name="color" type="string">
+                                The color of the text as a hex code.
+
+                                The hex code must include all six characters and be prefixed with a `#` symbol.
+
+                                <Prop.Extras>
+                                  **Example**
+
+                                  ```ts
+                                  "#ff0099"
+                                  ```
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="fontWeight" type="FontWeight">
+                                The weight (thickness) of the font.
+
+                                The available font weights depend on the font.
+
+                                <Prop.Extras>
+                                  **Default value**: `"normal"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"normal"`
+                                  * `"thin"`
+                                  * `"extralight"`
+                                  * `"light"`
+                                  * `"medium"`
+                                  * `"semibold"`
+                                  * `"bold"`
+                                  * `"ultrabold"`
+                                  * `"heavy"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="fontStyle" type="string">
+                                The style of the font.
+
+                                <Prop.Extras>
+                                  **Default value**: `"normal"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"normal"`
+                                  * `"italic"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="decoration" type="string">
+                                The decoration of the text.
+
+                                <Prop.Extras>
+                                  **Default value**: `"none"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"none"`
+                                  * `"underline"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="strikethrough" type="string">
+                                The strikethrough of the text.
+
+                                <Prop.Extras>
+                                  **Default value**: `"none"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"none"`
+                                  * `"strikethrough"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="link" type="string">
+                                An external URL that the text links to.
+                              </Prop>
+                            </Prop.List>
+                          </PillAccordion>
+                        </Prop>
+                      </Prop.List>
+
+                      **Returns**
+
+                      <Prop.List>
+                        <Prop name="bounds" required type="Bounds">
+                          A segment of a richtext range.
+
+                          <PillAccordion defaultExpanded={false} title={<>Properties of <strong>bounds</strong></>}>
+                            <Prop.List>
+                              <Prop name="index" required type="number">
+                                The starting position of the segment.
+
+                                This is zero-based, meaning the first character of the range is at index 0.
+                              </Prop>
+
+                              <Prop name="length" required type="number">
+                                The number of characters in the segment, starting from the index.
+                              </Prop>
+                            </Prop.List>
+                          </PillAccordion>
+                        </Prop>
+                      </Prop.List>
+                    </Prop>
+
+                    <Prop name="replaceText" required type="function">
+                      Replaces a region of text with the specified characters.
+
+                      **Parameters**
+
+                      <Prop.List>
+                        <Prop name="bounds" required type="Bounds">
+                          The segment of the range to replace.
+
+                          <PillAccordion defaultExpanded={false} title={<>Properties of <strong>bounds</strong></>}>
+                            <Prop.List>
+                              <Prop name="index" required type="number">
+                                The starting position of the segment.
+
+                                This is zero-based, meaning the first character of the range is at index 0.
+                              </Prop>
+
+                              <Prop name="length" required type="number">
+                                The number of characters in the segment, starting from the index.
+                              </Prop>
+                            </Prop.List>
+                          </PillAccordion>
+                        </Prop>
+
+                        <Prop name="characters" required type="string">
+                          The replacement characters.
+                        </Prop>
+
+                        <Prop name="formatting" type="InlineFormatting">
+                          The formatting to apply to the replaced text.
+
+                          <PillAccordion defaultExpanded={false} title={<>Properties of <strong>formatting</strong></>}>
+                            <Prop.List>
+                              <Prop name="color" type="string">
+                                The color of the text as a hex code.
+
+                                The hex code must include all six characters and be prefixed with a `#` symbol.
+
+                                <Prop.Extras>
+                                  **Example**
+
+                                  ```ts
+                                  "#ff0099"
+                                  ```
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="fontWeight" type="FontWeight">
+                                The weight (thickness) of the font.
+
+                                The available font weights depend on the font.
+
+                                <Prop.Extras>
+                                  **Default value**: `"normal"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"normal"`
+                                  * `"thin"`
+                                  * `"extralight"`
+                                  * `"light"`
+                                  * `"medium"`
+                                  * `"semibold"`
+                                  * `"bold"`
+                                  * `"ultrabold"`
+                                  * `"heavy"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="fontStyle" type="string">
+                                The style of the font.
+
+                                <Prop.Extras>
+                                  **Default value**: `"normal"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"normal"`
+                                  * `"italic"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="decoration" type="string">
+                                The decoration of the text.
+
+                                <Prop.Extras>
+                                  **Default value**: `"none"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"none"`
+                                  * `"underline"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="strikethrough" type="string">
+                                The strikethrough of the text.
+
+                                <Prop.Extras>
+                                  **Default value**: `"none"`
+                                </Prop.Extras>
+
+                                <Prop.Extras>
+                                  **Available values**:
+
+                                  * `"none"`
+                                  * `"strikethrough"`
+                                </Prop.Extras>
+                              </Prop>
+
+                              <Prop name="link" type="string">
+                                An external URL that the text links to.
+                              </Prop>
+                            </Prop.List>
+                          </PillAccordion>
+                        </Prop>
+                      </Prop.List>
+
+                      **Returns**
+
+                      <Prop.List>
+                        <Prop name="bounds" required type="Bounds">
+                          The bounds of the replacement characters within the updated range.
+
+                          <PillAccordion defaultExpanded={false} title={<>Properties of <strong>bounds</strong></>}>
+                            <Prop.List>
+                              <Prop name="index" required type="number">
+                                The starting position of the segment.
+
+                                This is zero-based, meaning the first character of the range is at index 0.
+                              </Prop>
+
+                              <Prop name="length" required type="number">
+                                The number of characters in the segment, starting from the index.
+                              </Prop>
+                            </Prop.List>
+                          </PillAccordion>
+                        </Prop>
+                      </Prop.List>
+                    </Prop>
+
+                    <Prop name="readPlaintext" required type="function">
+                      Returns the current state of the richtext as plaintext.
+
+                      **Returns**
+
+                      `string`
+                    </Prop>
+
+                    <Prop name="readTextRegions" required type="function">
+                      Returns the current state of the richtext as one or more text regions.
+                      Each region is an object that contains the text content and its formatting.
+
+                      **Returns**
+
+                      <Prop.List>
+                        <Prop name="text" required type="string">
+                          The plaintext content of the region.
+                        </Prop>
+
+                        <Prop name="formatting" type="Partial<RichtextFormatting>">
+                          The formatting of the region.
+                        </Prop>
+                      </Prop.List>
+                    </Prop>
+                  </Prop.List>
+                </PillAccordion>
+              </Prop>
+
+              <Prop name="top" required type="number">
+                The distance from the top edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="left" required type="number">
+                The distance from the left edge of the container, in pixels.
+
+                * The pixels are relative to their container.
+
+                <Prop.Extras>
+                  **Minimum**: `-32768`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="rotation" type="number">
+                A rotation, in degrees.
+
+                <Prop.Extras>
+                  **Minimum**: `-180`
+
+                  **Maximum**: `180`
+                </Prop.Extras>
+              </Prop>
+
+              <Prop name="width" type="number">
+                The width of the element, in pixels.
+
+                <Prop.Extras>
+                  **Minimum**: `0`
+
+                  **Maximum**: `32767`
+                </Prop.Extras>
+              </Prop>
+            </Prop.List>
+          </Tab>
+      </Tabs>
+  </Prop>
+</Prop.List>
+
+## Returns
+
+`Promise<void>`

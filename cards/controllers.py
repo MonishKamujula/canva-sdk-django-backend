@@ -108,9 +108,9 @@ def create_cards_from_user_input(user_input: str, n_cards: Optional[int] = None)
     You are an expert presentation assistant crafting slide 'cards' for educational or professional talks. 
     Each card has two parts:
     - title: a brief, engaging headline (≤ 10 words) that succinctly introduces one key idea.
-    - description: The sub topics of the slide, seperated by commas(3 to 6).
+    - description: The sub topics of the slide, seperated by commas(3 to 6), include "images" at the end, if the user wants images.
 
-    When given a topic, generate exactly the number of cards requested (if specified), or decide on an appropriate number (3–8) if not. 
+    When given a topic, generate exactly the number of cards requested(n_cards), or if the user mentioned number of cards in the input, then generate that number of cards. If they don't talk about they you choose the noumber of cards between 3 and 7. 
     Ensure:
     1. Each card presents a distinct, relevant point.
     2. Language is accessible to a general audience—avoid jargon unless essential.
@@ -118,9 +118,7 @@ def create_cards_from_user_input(user_input: str, n_cards: Optional[int] = None)
     """
 
     # Build the instruction for the AI, depending on whether n_cards was provided
-    if n_cards is not None:
-        if n_cards < 1:
-            raise ValueError("n_cards must be at least 1")
+    if n_cards >= 1:
         instruction = (
             f"Extract the main topic from the following input:\n\n\"{user_input}\"\n\n"
             f"Then generate exactly {n_cards} unique presentation cards about that topic."
@@ -128,7 +126,6 @@ def create_cards_from_user_input(user_input: str, n_cards: Optional[int] = None)
     else:
         instruction = (
             f"Extract the main topic from the following input:\n\n\"{user_input}\"\n\n"
-            "Then decide on a suitable number of cards (between 3 and 7) and generate presentation cards about that topic."
         )
 
     # Call the OpenAI wrapper, instructing it to parse into CardList
