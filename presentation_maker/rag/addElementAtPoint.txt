@@ -588,7 +588,7 @@ Add element to fixed designs, which use a coordinate-based positioning system.
                 </Prop.Extras>
               </Prop>
 
-              <Prop name="width" type="number">
+              <Prop name="width" required type="number">
                 The width of the element, in pixels.
 
                 <Prop.Extras>
@@ -1612,7 +1612,7 @@ Add element to fixed designs, which use a coordinate-based positioning system.
                 </Prop.Extras>
               </Prop>
 
-              <Prop name="width" type="number">
+              <Prop name="width" required type="number">
                 The width of the element, in pixels.
 
                 <Prop.Extras>

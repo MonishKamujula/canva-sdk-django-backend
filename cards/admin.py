@@ -6,7 +6,7 @@ from .models import Cards
 
 # admin.site.register(Cards)
 class CardsAdmin(admin.ModelAdmin):
-    list_display = ('session_id', 'tittle', 'description')
+    list_display = ('session_id', 'title', 'description')
 
 admin.site.register(Cards, CardsAdmin)
 

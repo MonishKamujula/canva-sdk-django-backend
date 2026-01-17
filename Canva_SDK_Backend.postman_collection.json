@@ -1,0 +1,114 @@
+{
+	"info": {
+		"_postman_id": "canva-sdk-backend-collection",
+		"name": "Canva SDK Backend",
+		"description": "Collection of endpoints for the Canva SDK Django Backend.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Cards",
+			"item": [
+				{
+					"name": "Get Cards",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/cards/get_cards",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cards",
+								"get_cards"
+							]
+						},
+						"description": "Retrieve all cards from the database."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Cards",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user_input\": \"A presentation about artificial intelligence\",\n    \"session_id\": \"test-session-123\",\n    \"n_cards\": 5\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/cards/create_cards",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cards",
+								"create_cards"
+							]
+						},
+						"description": "Create new presentation cards based on user input."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Presentation Maker",
+			"item": [
+				{
+					"name": "Canva Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"card\": {\n        \"title\": \"AI Overview\",\n        \"description\": \"Introduction to Artificial Intelligence concepts.\"\n    },\n    \"page_dimensions\": {\n        \"dimensions\": {\n            \"width\": 1920,\n            \"height\": 1080\n        }\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/presentation_maker/canva_request",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"presentation_maker",
+								"canva_request"
+							]
+						},
+						"description": "Generate Canva design functions for a presentation card."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8001",
+			"type": "string"
+		}
+	]
+}
