@@ -28,53 +28,42 @@ openai_client = OpenAI()
 def create_steps(card: dict) -> StepBreakdown:
     """
     Break down card content into design steps.
-    
-    Args:
-        card: Dictionary with 'title' and 'description' keys.
-    
-    Returns:
-        StepBreakdown with steps and RAG queries.
     """
     step_prompt = '''
-    # Break down the given card into smaller technical step commands, separated by commas, to generate a design document.
-- Input: 
-  • card – an object containing:
-    – heading: the slide's main title  
-    – subtopics: a list of section headings or bullet points  
+### TASK
+Break down the Input Card into a list of specific, technical design commands.
 
-- Example:  
-  If card = {
-    "heading": "Add information about animals",
-    "subtopics": "animal image", "animal description"
-  }  
-  then output:  
-  Add slide heading "Add information about animals", Add image of an animal centered on the slide, Add paragraph describing the animal at the bottom of the slide.
+### INPUT DATA
+Heading: {heading}
+Subtopics: {subtopics}
 
-  Remember that this is a slideshow so if you think you need to expand more on a topic the you can do it. So the output should have more info on subheadings not only the the subtopics.
-  
-  - If the subheadings have "Images" at the end then be sure to add images.
-  - For each step, also list the RAG queries required (choose all that apply):  
-  - An element that renders image content and has positional properties.  
-  - An element that renders video content and has positional properties.  
-  - An element that renders text content and has positional properties. 
-  - An element that renders embeds and has positional properties.  
-  - An element that renders a table.  
-  - An element that renders a vector shape and has positional properties.
-    '''
+### GUIDELINES
+1. **Expansion:** You are a presentation expert. If the input is sparse, reasonably expand on the subtopics to fill a slide (e.g., if "Animals" is the topic, add specific steps for "Add an image of a lion" and "Add text describing habitats").
+2. **Images:** If subtopics mention "Images" or visual concepts, you MUST include a step to "Add an image of...".
+3. **Format:** Output must match the StepBreakdown schema exactly.
+
+### REQUIRED RAG QUERIES
+For each step, identify the necessary Canva element types from this list:
+- Text element (headings, paragraphs)
+- Image element
+- Video element
+- Embed element
+- Table element
+- Vector/Shape element
+'''
     
     logger.info(f"Creating steps for card: {card['title']}")
     
     response = use_openai(
-        step_prompt,
-        f"Heading: {card['title']}, Subtopics: {card['description']}",
+        f"{step_prompt.format(heading=card['title'], subtopics=card['description'])}",
+        "Generate design steps.", # System instruction context
         "gpt-4o-mini",
         format=StepBreakdown
     )
     return response
 
-
 @tool
-def estimate_pixels(
+def estimate_num_lines(
     content: str,
     box_width_px: float,
     font_size_pt: float,
@@ -94,7 +83,7 @@ def estimate_pixels(
     Returns:
         Estimated height in pixels.
     """
-    logger.debug("estimate_pixels tool called")
+    logger.debug("estimate_num_lines tool called")
     
     # Convert pt to px
     font_size_px = font_size_pt * (96 / 72)
@@ -115,60 +104,129 @@ def estimate_pixels(
     return total_height
 
 
-def create_canva_functions(page_dimensions: dict, card: dict) -> str:
+@tool
+def check_element_overflow(
+    left: float, 
+    top: float, 
+    width: float, 
+    height: float, 
+    page_width: float, 
+    page_height: float,
+    padding: float = 40.0
+) -> dict:
     """
-    Generate Canva design functions for a presentation card.
-    
-    Uses RAG to retrieve relevant Canva SDK documentation and
-    LangChain agent for intelligent function generation.
+    Checks if an element fits within the page safe zones.
+    Returns a status and a description of the violation, but NO FIX.
     
     Args:
-        page_dimensions: Dictionary with 'width' and 'height' in pixels.
-        card: Dictionary with 'title' and 'description' keys.
-    
+        left, top, width, height: Element dimensions.
+        page_width, page_height: Page dimensions.
+        padding: Safe zone padding in pixels (default 40.0).
+        
     Returns:
-        JSON string of Canva function definitions.
+        Dict with status ("OK" or "WARNING") and details.
+    """
+    
+    right_edge = left + width
+    bottom_edge = top + height
+
+    # Check for Safe Zone Violations
+    violation_left = left < padding
+    violation_top = top < padding
+    violation_right = right_edge > (page_width - padding)
+    violation_bottom = bottom_edge > (page_height - padding)
+
+    is_overflowing = violation_left or violation_top or violation_right or violation_bottom
+
+    if not is_overflowing:
+        return {"status": "OK", "message": "Valid."}
+
+    # Construct specific error list for the model to interpret
+    errors = []
+    if violation_left: 
+        errors.append(f"VIOLATION_LEFT: {left} < {padding}")
+    if violation_top: 
+        errors.append(f"VIOLATION_TOP: {top} < {padding}")
+    if violation_right: 
+        errors.append(f"VIOLATION_RIGHT: {right_edge} > {page_width - padding}")
+    if violation_bottom: 
+        errors.append(f"VIOLATION_BOTTOM: {bottom_edge} > {page_height - padding}")
+
+    return {
+        "status": "WARNING",
+        "message": "Safe Zone Violation Detected.",
+        "details": errors  # Model must read this list to know what to fix
+    }
+
+def create_canva_functions(page_dimensions: dict, card: dict) -> str:
+    """
+    Generate Canva design functions using GPT-5 Nano and strict layout validation.
     """
     logger.info(f"Generating Canva functions for card: {card.get('title', 'Unknown')}")
     
     all_steps = create_steps(card)
     relevant_canva_doc = handle_rag(all_steps.rag_query)
-    
-    prompt = f'''
-    You are an AI designer for Canva pages with exceptional aesthetics.
-    
-    Inputs: The user will give you steps to generate a Canva page, and you will get the relevant Canva documentation to do the task that steps say: {relevant_canva_doc}
-
-    Output: You will generate a single JSON array of Canva functions to generate the page. Example: You need to return this [{{canva functions}}...]. Make Sure to put limited information, to make sure no overlaying elements.
-
-    Tips: Follow the steps, if you think you need to add more info then add it. If you think you will need to remove some then you can do it. But don't overdo it.
-
-    Extra tools:
-     - If you are adding a text element, then you can't provide a height for it you don't know the height for it. For find its height use the tool I provided(estimate_num_lines), provide it with is required params. It will give you the height in pixels. Don't worry to add text box close if it is aesthetic.
-
-    - Place every element strictly within the page dimensions.  
-    - Output must be a single, compact JSON array: start with [ and end with ], with no comments, extra tags, empty lines, or unnecessary spaces.  
-    - Page dimensions (pixels): {page_dimensions}  
-    – Top-left = (left=0, top=0)  
-    – Top-right = (left={page_dimensions["width"]}, top=0)  
-    – Bottom-left = (left=0, top={page_dimensions["height"]})  
-    – Bottom-right = (left={page_dimensions["width"]}, top={page_dimensions["height"]})  
-    • When a parameter has a restricted set of values (e.g., textAlign), choose only from those allowed options ("start", "center", "end", "justify").
-    - If you are adding a text element, then you can't provide a height for it you don't know the height for it. For find its height use the tool I provided(estimate_num_lines), provide it with is required params. It will give you the height in pixels. Don't worry to add text box close if it is aesthetic.
-    - Width is a required property for all elements. Always specify a width in pixels.
-    - If you need to add any colors then you need to provide a 6-digit hex code not a 3-digit hex code.
-    '''
-
     steps = ",".join(all_steps.steps)
     
+    prompt = f"""
+### SYSTEM ROLE
+You are an ultra-precise AI Designer for Canva (GPT-5 Nano). Your outputs must be mathematically perfect JSON arrays. You strictly adhere to design constraints and error correction logic.
+
+### OBJECTIVE
+Convert "User Steps" into a single JSON array of Canva functions.
+
+### INPUT CONTEXT
+1. **User Steps:** {steps}
+2. **Docs:** {relevant_canva_doc}
+3. **Dimensions:** {page_dimensions} (W x H)
+
+### MANDATORY TOOL PROTOCOL
+You cannot guess dimensions. You cannot guess safety. You must verify every element.
+
+1. **Step 1: Draft & Measure**
+   - Determine `width` and `font_size`.
+   - Call `estimate_num_lines` to get exact `height` for text.
+
+2. **Step 2: Verify Bounds**
+   - Call `check_element_overflow` with your drafted `left`, `top`, `width`, `height`.
+
+3. **Step 3: LOGIC CORRECTION (CRITICAL)**
+   - If the tool returns `"status": "WARNING"`, read the `details` list and apply the math below:
+     - **VIOLATION_LEFT:** Set `left = 40`.
+     - **VIOLATION_TOP:** Set `top = 40`.
+     - **VIOLATION_RIGHT:** Set `left = page_width - width - 40`.
+     - **VIOLATION_BOTTOM:** Set `top = page_height - height - 40`.
+   - **Resize Rule:** If fixing the position is impossible (e.g., width > page_width), you must reduce the element's `width` to fit within the 40px margins.
+
+4. **Step 4: Output**
+   - Write the final JSON with the corrected coordinates.
+
+### DESIGN CONSTRAINTS
+- **Safe Zone:** 40px padding on all sides. Content must not touch edges.
+- **Colors:** 6-digit hex only (e.g., "#000000").
+- **Alignment:** Align elements via Left Edge or Center Axis.
+
+### OUTPUT FORMAT
+- **Single JSON Array:** `[{{...}}, {{...}}]`
+- **No Markdown:** Do not use ```json or text blocks.
+- **No Whitespace:** Minify the output.
+- **Required Keys:** `width`, `height`, `left`, `top` (in pixels).
+
+### PARAMETER RESTRICTIONS
+- **textAlign:** ["start", "center", "end", "justify"] ONLY.
+"""
+    
     # Use LangChain agent with tool calling
-    lang_chain_openai = ChatOpenAI(model="gpt-4o", temperature=0.3)
-    agent = create_react_agent(model=lang_chain_openai, tools=[estimate_pixels])
+    lang_chain_openai = ChatOpenAI(model="gpt-4o-mini")
+    agent = create_react_agent(model=lang_chain_openai, tools=[estimate_num_lines, check_element_overflow])
     
     response = agent.invoke({
         "messages": [
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": steps}
+            {"role": "user", "content": prompt} 
+            # Note: For Nano/ReAct, it is often better to put the whole context in the first User message 
+            # if the System role is reserved for generic behavior, but putting it in System is also valid 
+            # depending on your specific model provider's alignment. 
+            # Here I put it in User to ensure the Agent sees the Tools instructions as immediate context.
         ]
     })
     
@@ -176,7 +234,6 @@ def create_canva_functions(page_dimensions: dict, card: dict) -> str:
     response_content = response["messages"][-1].content
     logger.info(f"Raw agent response: {response_content}")
     
-    # Clean markdown code blocks if present
     if "```" in response_content:
         response_content = response_content.replace("```json", "").replace("```", "").strip()
     
@@ -186,7 +243,6 @@ def create_canva_functions(page_dimensions: dict, card: dict) -> str:
         logger.error(f"Failed to parse agent response as JSON: {response_content}")
         raise ValueError(f"Agent returned invalid JSON: {e}")
     
-    # Replace image references with actual URLs
     functions = replace_images(parsed_response)
     
     return json.dumps(functions, indent=2)
