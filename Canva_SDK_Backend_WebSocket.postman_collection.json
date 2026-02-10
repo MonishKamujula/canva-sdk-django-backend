@@ -1,0 +1,24 @@
+{
+  "info": {
+    "_postman_id": "canva-websocket-streaming",
+    "name": "Canva SDK Backend - WebSocket API",
+    "description": "Collection for testing the WebSocket streaming API.\n\n**NOTE**: If this request opens as an HTTP request in Postman, please:\n1. Click 'New' > 'WebSocket Request'\n2. Paste URL: `ws://localhost:8000/ws/canva_request`\n3. Paste the Message body below.\n\n**Message Payload:**\n```json\n{\n  \"card\": {\n    \"title\": \"Introduction to AI\",\n    \"description\": \"Overview of artificial intelligence...\"\n  },\n  \"page_dimensions\": {\n    \"dimensions\": {\n      \"width\": 1920,\n      \"height\": 1080\n    }\n  }\n}\n```",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "WebSocket - Canva Request Stream",
+      "request": {
+        "url": {
+          "raw": "ws://localhost:8000/ws/canva_request",
+          "protocol": "ws",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["ws", "canva_request"]
+        },
+        "description": "Connect to this WebSocket URL. Send the JSON payload defined in the collection description."
+      },
+      "response": []
+    }
+  ]
+}

@@ -80,7 +80,7 @@ class CreateCanvaFunctionsTest(TestCase):
     
     @patch('presentation_maker.controllers.create_steps')
     @patch('presentation_maker.controllers.handle_rag')
-    @patch('presentation_maker.controllers.create_react_agent')
+    @patch('presentation_maker.controllers.create_agent')
     @patch('presentation_maker.controllers.ChatOpenAI')
     @patch('presentation_maker.controllers.replace_images')
     def test_strips_markdown_from_response(self, mock_replace, mock_chat, mock_agent, mock_rag, mock_steps):
