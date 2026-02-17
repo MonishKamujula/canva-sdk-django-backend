@@ -12,6 +12,7 @@ from typing import List, AsyncGenerator
 from openai import OpenAI
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
+from langchain_core.messages import BaseMessage
 from langgraph.prebuilt import create_react_agent
 
 from core.ai import use_openai
@@ -23,6 +24,67 @@ logger = logging.getLogger(__name__)
 
 # Initialize OpenAI client
 openai_client = OpenAI()
+
+
+class SafeChatOpenAI(ChatOpenAI):
+    """
+    Wrapper around ChatOpenAI that sanitizes message content.
+    Fixes 'type: image' issue which causes BadRequestError.
+    """
+    def _sanitize_messages(self, messages: List[BaseMessage]) -> List[BaseMessage]:
+        sanitized = []
+        for msg in messages:
+            # Tool messages must have string content for OpenAI API.
+            # If LangGraph/LangChain left it as a list (e.g. return value of tool),
+            # serialize it now to prevent it from being misinterpreted as content blocks.
+            if msg.type == 'tool' and isinstance(msg.content, list):
+                msg.content = json.dumps(msg.content)
+                sanitized.append(msg)
+                continue
+
+            if isinstance(msg.content, list):
+                new_content = []
+                for block in msg.content:
+                    if isinstance(block, dict) and block.get("type") == "image":
+                        # Fix invalid type "image" -> "image_url"
+                        if "image_url" in block:
+                             new_block = block.copy()
+                             new_block["type"] = "image_url"
+                             new_content.append(new_block)
+                        elif "url" in block:
+                             new_block = {"type": "image_url", "image_url": {"url": block["url"]}}
+                             new_content.append(new_block)
+                        else:
+                             # Fallback: Keep invalid block to avoid losing data (e.g. internal tool outputs)
+                             # Log it so we know it's happening, but don't delete it.
+                             logger.warning(f"Preserving ambiguous image block: {block}")
+                             new_content.append(block)
+                    else:
+                        new_content.append(block)
+                # Mutate message content in place (safe for LangGraph state usually)
+                msg.content = new_content
+                sanitized.append(msg)
+            else:
+                sanitized.append(msg)
+        return sanitized
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        messages = self._sanitize_messages(messages)
+        return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+    async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
+        messages = self._sanitize_messages(messages)
+        return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+    def _stream(self, messages, stop=None, run_manager=None, **kwargs):
+        messages = self._sanitize_messages(messages)
+        return super()._stream(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+    async def _astream(self, messages, stop=None, run_manager=None, **kwargs):
+        messages = self._sanitize_messages(messages)
+        async for chunk in super()._astream(messages, stop=stop, run_manager=run_manager, **kwargs):
+            yield chunk
+
 
 
 def create_steps(card: dict) -> StepBreakdown:
@@ -63,7 +125,7 @@ For each step, identify the necessary Canva element types from this list:
     return response
 
 @tool
-def estimate_num_lines(items: List[dict]) -> List[float]:
+def estimate_num_lines(items: List[dict] = []) -> List[float]:
     """
     Estimate the height in pixels for a list of text content items.
     
@@ -109,15 +171,15 @@ def estimate_num_lines(items: List[dict]) -> List[float]:
 
 
 @tool
-def enforce_design_constraints(items: List[dict]) -> List[dict]:
+def enforce_design_constraints(items: List[dict], page_width: int, page_height: int, padding: float = 40.0) -> List[dict]:
     """
     Validates and FIXES a list of elements to ensure they fit within the page safe zones.
     
     Args:
-        items: List of dictionaries, each containing:
-            - left, top, width, height: Element dimensions.
-            - page_width, page_height: Page dimensions.
-            - padding: Optional safe zone padding (default 40.0).
+        items: List of dictionaries. EACH item must be the FULL element object (including type, content, etc.) plus 'left', 'top', 'width', 'height'.
+        page_width: Width of the page in pixels.
+        page_height: Height of the page in pixels.
+        padding: Optional safe zone padding (default 40.0).
             
     Returns:
         List of FIXED elements that are guaranteed to be valid.
@@ -125,18 +187,14 @@ def enforce_design_constraints(items: List[dict]) -> List[dict]:
     fixed_items = []
     
     for item in items:
-        # Create a copy to avoid mutating the original dict if needed, 
-        # though here we are building a new list.
-        # We ensure all necessary keys are present.
+        # Create a copy to avoid mutating the original dict
         fixed_item = item.copy()
         
         left = float(fixed_item.get("left", 0))
         top = float(fixed_item.get("top", 0))
         width = float(fixed_item.get("width", 0))
         height = float(fixed_item.get("height", 0))
-        page_width = fixed_item.get("page_width", 0)
-        page_height = fixed_item.get("page_height", 0)
-        padding = fixed_item.get("padding", 40.0)
+        # page_width and page_height are now passed as args, not in item
         
         # 1. Enforce Width Constraints
         max_width = page_width - (2 * padding)
@@ -177,7 +235,7 @@ def enforce_design_constraints(items: List[dict]) -> List[dict]:
             
         fixed_items.append(fixed_item)
 
-    return fixed_items
+    return json.dumps(fixed_items)
 
 def create_canva_functions(page_dimensions: dict, card: dict) -> str:
     """
@@ -200,6 +258,9 @@ Convert "User Steps" into a single JSON array of Canva functions.
 1. **User Steps:** {steps}
 2. **Docs:** {relevant_canva_doc}
 3. **Dimensions:** {page_dimensions} (W x H)
+4. **Schema Rules:**
+   - Text elements: MUST use `children: ["Your text"]`. Do NOT use "content" or "text".
+   - Image elements: MUST use `ref`.
 
 ### MANDATORY TOOL PROTOCOL
 You must use the provided tools to ensure mathematical perfection. 
@@ -207,17 +268,25 @@ You must use the provided tools to ensure mathematical perfection.
 **BATCH PROCESSING REQUIRED:** 
 Do NOT call tools one by one. You MUST gather all elements and call the tool ONCE with a list of items.
 
-1. **Step 1: Draft & Measure (BATCH)**
-   - Determine `width` and `font_size` for ALL text elements.
-   - Call `estimate_num_lines` with a **list** of all text items to get exact `height` for each.
+1. **Step 1: Estimate Text Height**
+   - Gather all TEXT elements into a list.
+   - Call `estimate_num_lines(items=[{{"content": "...", "box_width_px": 123, "font_size_pt": 12}}, ...])`.
+   - USE the returned heights for your elements.
 
-2. **Step 2: Enforce Constraints (BATCH)**
-   - Call `enforce_design_constraints` with a **list** of all elements using your drafted `left`, `top`, `width`, `height`.
-   - This tool will AUTOMATICALLY FIX any layout issues.
+2. **Step 2: Enforce Constraints**
+   - Gather ALL elements (text, images, shapes) into a list.
+   - EACH item in the list MUST be the COMPLETE element object (type, content, styling, etc.) combined with your proposed `left`, `top`, `width`, `height`.
+   - Call `enforce_design_constraints` with a SINGLE dictionary argument:
+     {{
+       "items": [ ... your list of elements ... ],
+       "page_width": {page_dimensions['width']},
+       "page_height": {page_dimensions['height']}
+     }}
+   - This tool will return the FIXED list of elements.
 
-3. **Step 3: Output**
-   - The tool output from Step 2 is your FINAL ANSWER.
-   - Output that JSON array immediately. Do not modify it.
+3. **Step 3: Final Output**
+   - The JSON array returned by `enforce_design_constraints` is your FINAL ANSWER.
+   - Output it immediately as a single JSON array.
 
 ### DESIGN CONSTRAINTS
 - **Safe Zone:** 40px padding on all sides.
@@ -230,7 +299,7 @@ Do NOT call tools one by one. You MUST gather all elements and call the tool ONC
 """
     
     # Use LangChain agent with tool calling
-    lang_chain_openai = ChatOpenAI(model="gpt-4o-mini")
+    lang_chain_openai = SafeChatOpenAI(model="gpt-4o-mini")
     agent = create_react_agent(model=lang_chain_openai, tools=[estimate_num_lines, enforce_design_constraints])
     
     response = agent.invoke({
@@ -285,24 +354,33 @@ Convert "User Steps" into a single JSON array of Canva functions.
 1. **User Steps:** {steps}
 2. **Docs:** {relevant_canva_doc}
 3. **Dimensions:** {page_dimensions} (W x H)
+4. **Schema Rules:**
+   - Text elements: MUST use `children: ["Your text"]`. Do NOT use "content" or "text".
+   - Image elements: MUST use `ref`.
 
 ### MANDATORY TOOL PROTOCOL
 You must use the provided tools to ensure mathematical perfection.
 
 **BATCH PROCESSING REQUIRED:** 
-Do NOT call tools one by one. You MUST gather all elements and call the tool ONCE with a list of items.
+1. **Step 1: Estimate Text Height**
+   - Gather all TEXT elements into a list.
+   - Call `estimate_num_lines(items=[{{"content": "...", "box_width_px": 123, "font_size_pt": 12}}, ...])`.
+   - USE the returned heights for your elements.
 
-1. **Step 1: Draft & Measure (BATCH)**
-   - Determine `width` and `font_size` for ALL text elements.
-   - Call `estimate_num_lines` with a **list** of all text items to get exact `height` for each.
+2. **Step 2: Enforce Constraints**
+   - Gather ALL elements (text, images, shapes) into a list.
+   - EACH item in the list MUST be the COMPLETE element object (type, content, styling, etc.) combined with your proposed `left`, `top`, `width`, `height`.
+   - Call `enforce_design_constraints` with a SINGLE dictionary argument:
+     {{
+       "items": [ ... your list of elements ... ],
+       "page_width": {page_dimensions['width']},
+       "page_height": {page_dimensions['height']}
+     }}
+   - This tool will return the FIXED list of elements.
 
-2. **Step 2: Enforce Constraints (BATCH)**
-   - Call `enforce_design_constraints` with a **list** of all elements using your drafted `left`, `top`, `width`, `height`.
-   - This tool will AUTOMATICALLY FIX any layout issues.
-
-3. **Step 3: Output**
-   - The tool output from Step 2 is your FINAL ANSWER.
-   - Output that JSON array immediately. Do not modify it.
+3. **Step 3: Final Output**
+   - The JSON array returned by `enforce_design_constraints` is your FINAL ANSWER.
+   - Output it immediately as a single JSON array.
 
 ### DESIGN CONSTRAINTS
 - **Safe Zone:** 40px padding on all sides.
@@ -315,7 +393,7 @@ Do NOT call tools one by one. You MUST gather all elements and call the tool ONC
 """
     
     # Use LangChain agent with tool calling
-    lang_chain_openai = ChatOpenAI(model="gpt-4o-mini", streaming=True)
+    lang_chain_openai = SafeChatOpenAI(model="gpt-4o-mini", streaming=True)
     agent = create_react_agent(model=lang_chain_openai, tools=[estimate_num_lines, enforce_design_constraints])
     
     # Buffer to accumulate tokens from the final answer
@@ -326,7 +404,8 @@ Do NOT call tools one by one. You MUST gather all elements and call the tool ONC
     
     async for event in agent.astream_events(
         {"messages": [{"role": "user", "content": prompt}]},
-        version="v2"
+        version="v2",
+        config={"recursion_limit": 100}
     ):
         kind = event.get("event")
         
