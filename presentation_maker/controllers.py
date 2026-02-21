@@ -14,6 +14,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
 from langchain_core.messages import BaseMessage
 from langgraph.prebuilt import create_react_agent
+from langgraph.config import get_stream_writer
 
 from core.ai import use_openai
 from core.utils import replace_images
@@ -139,10 +140,18 @@ def estimate_num_lines(items: List[dict] = []) -> List[float]:
     Returns:
         List of estimated heights in pixels, corresponding to the input order.
     """
+    writer = get_stream_writer()
     logger.debug(f"estimate_num_lines batch tool called with {len(items)} items")
+    
+    writer({
+        "type": "agent_thinking",
+        "stage": "estimate_heights",
+        "message": f"Calculating text heights for {len(items)} elements..."
+    })
+    
     results = []
     
-    for item in items:
+    for i, item in enumerate(items):
         content = item.get("content", "")
         box_width_px = item.get("box_width_px", 0)
         font_size_pt = item.get("font_size_pt", 12)
@@ -166,7 +175,19 @@ def estimate_num_lines(items: List[dict] = []) -> List[float]:
         
         total_height = (font_size_px * 1.4) * num_lines + (1.1 * font_size_px)
         results.append(total_height)
+        
+        writer({
+            "type": "agent_thinking",
+            "stage": "estimate_heights",
+            "message": f"Element {i+1}/{len(items)}: estimated height = {total_height:.0f}px"
+        })
 
+    writer({
+        "type": "agent_thinking",
+        "stage": "estimate_heights",
+        "message": "Height estimation complete."
+    })
+    
     return results
 
 
@@ -184,9 +205,17 @@ def enforce_design_constraints(items: List[dict], page_width: int, page_height: 
     Returns:
         List of FIXED elements that are guaranteed to be valid.
     """
+    writer = get_stream_writer()
+    
+    writer({
+        "type": "agent_thinking",
+        "stage": "enforce_constraints",
+        "message": f"Validating {len(items)} elements against page bounds..."
+    })
+    
     fixed_items = []
     
-    for item in items:
+    for i, item in enumerate(items):
         # Create a copy to avoid mutating the original dict
         fixed_item = item.copy()
         
@@ -234,6 +263,20 @@ def enforce_design_constraints(items: List[dict], page_width: int, page_height: 
             fixed_item["top"] = max(padding, new_top) # Don't push past ceiling
             
         fixed_items.append(fixed_item)
+        
+        # Stream each fixed element as an update (same index as preview)
+        processed = replace_images([fixed_item])
+        writer({
+            "type": "element_update",
+            "index": i,
+            "data": processed[0] if processed else fixed_item
+        })
+    
+    writer({
+        "type": "agent_thinking",
+        "stage": "enforce_constraints",
+        "message": "All elements validated and fixed."
+    })
 
     return json.dumps(fixed_items)
 
@@ -328,13 +371,21 @@ Do NOT call tools one by one. You MUST gather all elements and call the tool ONC
 
 async def stream_canva_functions(page_dimensions: dict, card: dict) -> AsyncGenerator[dict, None]:
     """
-    Async generator that streams Canva design elements one by one.
+    Two-phase async generator that streams Canva design elements.
     
-    Uses LangGraph's astream_events to capture the final AI message tokens,
-    then parses complete JSON objects from the streaming array output.
+    Phase 1 (element_preview): Parses complete Canva elements from LLM
+    tool_call_chunks as the LLM generates enforce_design_constraints args.
+    Each element is a fully renderable Canva element sent immediately.
+    
+    Phase 2 (element_update): After enforce_design_constraints executes,
+    each fixed element is emitted via get_stream_writer() with the same
+    index, so the frontend can update in-place.
+    
+    Also streams agent_thinking events from tools for UI status.
     
     Yields:
-        dict: Individual Canva element definitions (after image replacement)
+        dict: Event dicts with 'type' key: element_preview, element_update,
+              agent_thinking
     """
     logger.info(f"Streaming Canva functions for card: {card.get('title', 'Unknown')}")
     
@@ -396,65 +447,93 @@ You must use the provided tools to ensure mathematical perfection.
     lang_chain_openai = SafeChatOpenAI(model="gpt-4o-mini", streaming=True)
     agent = create_react_agent(model=lang_chain_openai, tools=[estimate_num_lines, enforce_design_constraints])
     
-    # Buffer to accumulate tokens from the final answer
-    buffer = ""
-    in_array = False
+    # --- Phase 1 state: parse preview elements from tool_call_chunks ---
+    args_buffer = ""
     brace_depth = 0
     current_object_start = -1
+    in_string = False
+    escape_next = False
+    preview_index = 0
+    current_tool_name = None  # Track which tool is being called
     
-    async for event in agent.astream_events(
+    async for stream_mode, chunk in agent.astream(
         {"messages": [{"role": "user", "content": prompt}]},
-        version="v2",
+        stream_mode=["messages", "custom"],
         config={"recursion_limit": 100}
     ):
-        kind = event.get("event")
+        # ─── CUSTOM events (Phase 2 + agent_thinking) ───
+        if stream_mode == "custom":
+            # These come from get_stream_writer() inside tools
+            # Already structured as {type, index, data, ...}
+            yield chunk
         
-        # We're looking for the final AI message content
-        if kind == "on_chat_model_stream":
-            chunk = event.get("data", {}).get("chunk")
-            if chunk and hasattr(chunk, "content") and chunk.content:
-                token = chunk.content
-                buffer += token
-                
-                # Parse the buffer for complete JSON objects
-                i = len(buffer) - len(token)  # Start from where new content was added
-                while i < len(buffer):
-                    char = buffer[i]
+        # ─── MESSAGES events (Phase 1 — preview from tool call args) ───
+        elif stream_mode == "messages":
+            token, metadata = chunk
+            
+            # Check for tool_call_chunks (LLM building tool call arguments)
+            if hasattr(token, "tool_call_chunks") and token.tool_call_chunks:
+                for tc in token.tool_call_chunks:
+                    # Detect which tool is being called from the first chunk
+                    tc_name = tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", None)
+                    if tc_name:
+                        # New tool call starting — reset parser state
+                        current_tool_name = tc_name
+                        args_buffer = ""
+                        brace_depth = 0
+                        current_object_start = -1
+                        in_string = False
+                        escape_next = False
+                        logger.debug(f"Tool call detected: {current_tool_name}")
                     
-                    # Skip if we're inside a string
-                    if char == '"':
-                        # Simple string handling - find the closing quote
-                        i += 1
-                        while i < len(buffer):
-                            if buffer[i] == '\\':
-                                i += 2  # Skip escaped character
-                                continue
-                            if buffer[i] == '"':
-                                break
-                            i += 1
-                    elif char == '[' and not in_array:
-                        # Start of the array
-                        in_array = True
-                    elif char == '{':
-                        if brace_depth == 0:
-                            current_object_start = i
-                        brace_depth += 1
-                    elif char == '}':
-                        brace_depth -= 1
-                        if brace_depth == 0 and current_object_start >= 0:
-                            # We have a complete object!
-                            object_str = buffer[current_object_start:i+1]
-                            try:
-                                element = json.loads(object_str)
-                                # Apply image replacement
-                                processed = replace_images([element])
-                                if processed:
-                                    yield processed[0]
-                                    logger.debug(f"Yielded element: {element.get('type', 'unknown')}")
-                            except json.JSONDecodeError as e:
-                                logger.warning(f"Failed to parse element: {e}")
-                            current_object_start = -1
+                    # Only parse element previews from enforce_design_constraints
+                    if current_tool_name != "enforce_design_constraints":
+                        continue
                     
-                    i += 1
+                    args_fragment = tc.get("args", "") if isinstance(tc, dict) else getattr(tc, "args", "")
+                    if not args_fragment:
+                        continue
+                    
+                    # Accumulate tool call args and parse complete element objects
+                    for char in args_fragment:
+                        args_buffer += char
+                        
+                        # Handle string literals (skip brace counting inside strings)
+                        if escape_next:
+                            escape_next = False
+                            continue
+                        if char == '\\'  and in_string:
+                            escape_next = True
+                            continue
+                        if char == '"':
+                            in_string = not in_string
+                            continue
+                        if in_string:
+                            continue
+                        
+                        # Track brace depth to find complete JSON objects
+                        if char == '{':
+                            if brace_depth == 0:
+                                current_object_start = len(args_buffer) - 1
+                            brace_depth += 1
+                        elif char == '}':
+                            brace_depth -= 1
+                            if brace_depth == 0 and current_object_start >= 0:
+                                # Complete element object found!
+                                object_str = args_buffer[current_object_start:len(args_buffer)]
+                                try:
+                                    element = json.loads(object_str)
+                                    # Apply image replacement and yield as preview
+                                    processed = replace_images([element])
+                                    yield {
+                                        "type": "element_preview",
+                                        "index": preview_index,
+                                        "data": processed[0] if processed else element
+                                    }
+                                    logger.debug(f"Yielded preview element {preview_index}: {element.get('type', 'unknown')}")
+                                    preview_index += 1
+                                except json.JSONDecodeError as e:
+                                    logger.warning(f"Failed to parse preview element: {e}")
+                                current_object_start = -1
     
-    logger.info("Streaming complete")
+    logger.info(f"Streaming complete. {preview_index} preview elements sent.")

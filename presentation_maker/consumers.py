@@ -93,14 +93,24 @@ class CanvaRequestConsumer(AsyncWebsocketConsumer):
             
             # Stream the Canva functions
             element_count = 0
-            async for element in stream_canva_functions(page_dimensions, card):
-                element_count += 1
-                await self.send(text_data=json.dumps({
-                    "type": "element",
-                    "index": element_count,
-                    "data": element
-                }))
-                logger.debug(f"Sent element {element_count}")
+            async for event in stream_canva_functions(page_dimensions, card):
+                event_type = event.get("type", "")
+                
+                if event_type == "element_preview":
+                    # Phase 1: Preview element parsed from LLM tool call args
+                    element_count = max(element_count, event["index"] + 1)
+                    await self.send(text_data=json.dumps(event))
+                    logger.debug(f"Sent preview element {event['index']}")
+                
+                elif event_type == "element_update":
+                    # Phase 2: Validated element from enforce_design_constraints
+                    await self.send(text_data=json.dumps(event))
+                    logger.debug(f"Sent element update {event['index']}")
+                
+                elif event_type == "agent_thinking":
+                    # Tool progress events (height estimation, constraint fixing)
+                    await self.send(text_data=json.dumps(event))
+                    logger.debug(f"Sent agent_thinking: {event.get('message', '')}")
             
             # Send completion message
             await self.send(text_data=json.dumps({
