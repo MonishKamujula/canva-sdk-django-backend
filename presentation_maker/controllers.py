@@ -9,11 +9,8 @@ import logging
 import math
 from typing import List, AsyncGenerator
 
-from openai import OpenAI
-from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
-from langchain_core.messages import BaseMessage
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 from langgraph.config import get_stream_writer
 
 from core.ai import use_openai
@@ -22,69 +19,6 @@ from .rag.canva_rag import handle_rag
 from .schemas import StepBreakdown
 
 logger = logging.getLogger(__name__)
-
-# Initialize OpenAI client
-openai_client = OpenAI()
-
-
-class SafeChatOpenAI(ChatOpenAI):
-    """
-    Wrapper around ChatOpenAI that sanitizes message content.
-    Fixes 'type: image' issue which causes BadRequestError.
-    """
-    def _sanitize_messages(self, messages: List[BaseMessage]) -> List[BaseMessage]:
-        sanitized = []
-        for msg in messages:
-            # Tool messages must have string content for OpenAI API.
-            # If LangGraph/LangChain left it as a list (e.g. return value of tool),
-            # serialize it now to prevent it from being misinterpreted as content blocks.
-            if msg.type == 'tool' and isinstance(msg.content, list):
-                msg.content = json.dumps(msg.content)
-                sanitized.append(msg)
-                continue
-
-            if isinstance(msg.content, list):
-                new_content = []
-                for block in msg.content:
-                    if isinstance(block, dict) and block.get("type") == "image":
-                        # Fix invalid type "image" -> "image_url"
-                        if "image_url" in block:
-                             new_block = block.copy()
-                             new_block["type"] = "image_url"
-                             new_content.append(new_block)
-                        elif "url" in block:
-                             new_block = {"type": "image_url", "image_url": {"url": block["url"]}}
-                             new_content.append(new_block)
-                        else:
-                             # Fallback: Keep invalid block to avoid losing data (e.g. internal tool outputs)
-                             # Log it so we know it's happening, but don't delete it.
-                             logger.warning(f"Preserving ambiguous image block: {block}")
-                             new_content.append(block)
-                    else:
-                        new_content.append(block)
-                # Mutate message content in place (safe for LangGraph state usually)
-                msg.content = new_content
-                sanitized.append(msg)
-            else:
-                sanitized.append(msg)
-        return sanitized
-
-    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
-        messages = self._sanitize_messages(messages)
-        return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
-
-    async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
-        messages = self._sanitize_messages(messages)
-        return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
-
-    def _stream(self, messages, stop=None, run_manager=None, **kwargs):
-        messages = self._sanitize_messages(messages)
-        return super()._stream(messages, stop=stop, run_manager=run_manager, **kwargs)
-
-    async def _astream(self, messages, stop=None, run_manager=None, **kwargs):
-        messages = self._sanitize_messages(messages)
-        async for chunk in super()._astream(messages, stop=stop, run_manager=run_manager, **kwargs):
-            yield chunk
 
 
 
@@ -126,7 +60,7 @@ For each step, identify the necessary Canva element types from this list:
     return response
 
 @tool
-def estimate_num_lines(items: List[dict] = []) -> List[float]:
+def get_estimate_height(items: List[dict] = []) -> List[float]:
     """
     Estimate the height in pixels for a list of text content items.
     
@@ -141,11 +75,11 @@ def estimate_num_lines(items: List[dict] = []) -> List[float]:
         List of estimated heights in pixels, corresponding to the input order.
     """
     writer = get_stream_writer()
-    logger.debug(f"estimate_num_lines batch tool called with {len(items)} items")
+    logger.debug(f"get_estimate_height batch tool called with {len(items)} items")
     
     writer({
         "type": "agent_thinking",
-        "stage": "estimate_heights",
+        "stage": "get_estimate_heights",
         "message": f"Calculating text heights for {len(items)} elements..."
     })
     
@@ -178,13 +112,13 @@ def estimate_num_lines(items: List[dict] = []) -> List[float]:
         
         writer({
             "type": "agent_thinking",
-            "stage": "estimate_heights",
+            "stage": "get_estimate_heights",
             "message": f"Element {i+1}/{len(items)}: estimated height = {total_height:.0f}px"
         })
 
     writer({
         "type": "agent_thinking",
-        "stage": "estimate_heights",
+        "stage": "get_estimate_heights",
         "message": "Height estimation complete."
     })
     
@@ -280,94 +214,6 @@ def enforce_design_constraints(items: List[dict], page_width: int, page_height: 
 
     return json.dumps(fixed_items)
 
-def create_canva_functions(page_dimensions: dict, card: dict) -> str:
-    """
-    Generate Canva design functions.
-    """
-    logger.info(f"Generating Canva functions for card: {card.get('title', 'Unknown')}")
-    
-    all_steps = create_steps(card)
-    relevant_canva_doc = handle_rag(all_steps.rag_query)
-    steps = ",".join(all_steps.steps)
-    
-    prompt = f"""
-### SYSTEM ROLE
-You are an ultra-precise AI Designer for Canva.
-
-### OBJECTIVE
-Convert "User Steps" into a single JSON array of Canva functions.
-
-### INPUT CONTEXT
-1. **User Steps:** {steps}
-2. **Docs:** {relevant_canva_doc}
-3. **Dimensions:** {page_dimensions} (W x H)
-4. **Schema Rules:**
-   - Text elements: MUST use `children: ["Your text"]`. Do NOT use "content" or "text".
-   - Image elements: MUST use `ref`.
-
-### MANDATORY TOOL PROTOCOL
-You must use the provided tools to ensure mathematical perfection. 
-
-**BATCH PROCESSING REQUIRED:** 
-Do NOT call tools one by one. You MUST gather all elements and call the tool ONCE with a list of items.
-
-1. **Step 1: Estimate Text Height**
-   - Gather all TEXT elements into a list.
-   - Call `estimate_num_lines(items=[{{"content": "...", "box_width_px": 123, "font_size_pt": 12}}, ...])`.
-   - USE the returned heights for your elements.
-
-2. **Step 2: Enforce Constraints**
-   - Gather ALL elements (text, images, shapes) into a list.
-   - EACH item in the list MUST be the COMPLETE element object (type, content, styling, etc.) combined with your proposed `left`, `top`, `width`, `height`.
-   - Call `enforce_design_constraints` with a SINGLE dictionary argument:
-     {{
-       "items": [ ... your list of elements ... ],
-       "page_width": {page_dimensions['width']},
-       "page_height": {page_dimensions['height']}
-     }}
-   - This tool will return the FIXED list of elements.
-
-3. **Step 3: Final Output**
-   - The JSON array returned by `enforce_design_constraints` is your FINAL ANSWER.
-   - Output it immediately as a single JSON array.
-
-### DESIGN CONSTRAINTS
-- **Safe Zone:** 40px padding on all sides.
-- **Colors:** 6-digit hex only (e.g., "#000000").
-
-### OUTPUT FORMAT
-- **Single JSON Array:** `[{{...}}, {{...}}]`
-- **No Markdown:** Do not use ```json or text blocks.
-- **No Whitespace:** Minify the output.
-"""
-    
-    # Use LangChain agent with tool calling
-    lang_chain_openai = SafeChatOpenAI(model="gpt-4o-mini")
-    agent = create_react_agent(model=lang_chain_openai, tools=[estimate_num_lines, enforce_design_constraints])
-    
-    response = agent.invoke({
-        "messages": [
-            {"role": "user", "content": prompt} 
-        ]
-    })
-    
-    # Parse the response
-    response_content = response["messages"][-1].content
-    logger.info(f"Raw agent response: {response_content}")
-    
-    if "```" in response_content:
-        response_content = response_content.replace("```json", "").replace("```", "").strip()
-    
-    try:
-        parsed_response = json.loads(response_content)
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse agent response as JSON: {response_content}")
-        raise ValueError(f"Agent returned invalid JSON: {e}")
-    
-    functions = replace_images(parsed_response)
-    
-    return json.dumps(functions, indent=2)
-
 
 async def stream_canva_functions(page_dimensions: dict, card: dict) -> AsyncGenerator[dict, None]:
     """
@@ -415,7 +261,7 @@ You must use the provided tools to ensure mathematical perfection.
 **BATCH PROCESSING REQUIRED:** 
 1. **Step 1: Estimate Text Height**
    - Gather all TEXT elements into a list.
-   - Call `estimate_num_lines(items=[{{"content": "...", "box_width_px": 123, "font_size_pt": 12}}, ...])`.
+   - Call `get_estimate_height(items=[{{"content": "...", "box_width_px": 123, "font_size_pt": 12}}, ...])`.
    - USE the returned heights for your elements.
 
 2. **Step 2: Enforce Constraints**
@@ -443,9 +289,8 @@ You must use the provided tools to ensure mathematical perfection.
 - **No Whitespace:** Minify the output.
 """
     
-    # Use LangChain agent with tool calling
-    lang_chain_openai = SafeChatOpenAI(model="gpt-4o-mini", streaming=True)
-    agent = create_react_agent(model=lang_chain_openai, tools=[estimate_num_lines, enforce_design_constraints])
+    # Use LangChain 1 agent with tool calling
+    agent = create_agent(model="openai:gpt-4o-mini", tools=[get_estimate_height, enforce_design_constraints])
     
     # --- Phase 1 state: parse preview elements from tool_call_chunks ---
     args_buffer = ""

@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 
 from django.test import TestCase, Client
 
-from .controllers import estimate_pixels
+from .controllers import get_estimate_height
 from core.utils import search_pexels_image, replace_images
 
 
@@ -75,51 +75,14 @@ class ReplaceImagesTest(TestCase):
         self.assertEqual(result, [])
 
 
-class CreateCanvaFunctionsTest(TestCase):
-    """Tests for create_canva_functions controller."""
-    
-    @patch('presentation_maker.controllers.create_steps')
-    @patch('presentation_maker.controllers.handle_rag')
-    @patch('presentation_maker.controllers.create_agent')
-    @patch('presentation_maker.controllers.ChatOpenAI')
-    @patch('presentation_maker.controllers.replace_images')
-    def test_strips_markdown_from_response(self, mock_replace, mock_chat, mock_agent, mock_rag, mock_steps):
-        """Test that markdown code blocks are stripped from agent response."""
-        from presentation_maker.controllers import create_canva_functions
-        
-        # Setup mocks
-        mock_steps.return_value.rag_query = ["query"]
-        mock_steps.return_value.steps = ["step1"]
-        mock_rag.return_value = "docs"
-        
-        # Mock agent response with markdown
-        mock_agent_executor = MagicMock()
-        mock_agent_executor.invoke.return_value = {
-            "messages": [
-                MagicMock(content='```json\n[{"type": "text"}]\n```')
-            ]
-        }
-        mock_agent.return_value = mock_agent_executor
-        
-        mock_replace.side_effect = lambda x: x # Identity function
-        
-        # Execute
-        result = create_canva_functions(
-            {"width": 800, "height": 600}, 
-            {"title": "Valid Title", "description": "Valid Description"}
-        )
-        
-        # Verify
-        self.assertEqual(json.loads(result), [{"type": "text"}])
 
-
-class EstimatePixelsTest(TestCase):
-    """Tests for the estimate_pixels tool function."""
+class EstimateHeightTest(TestCase):
+    """Tests for the get_estimate_height tool function."""
     
     def test_single_line_text(self):
         """Test height estimation for single line text."""
         # Short text that fits in one line
-        result = estimate_pixels.invoke({
+        result = get_estimate_height.invoke({
             "content": "Hello",
             "box_width_px": 500,
             "font_size_pt": 16,
@@ -136,7 +99,7 @@ class EstimatePixelsTest(TestCase):
         # Long text that wraps to multiple lines
         long_text = "This is a very long text that should definitely wrap to multiple lines when displayed in a narrow text box."
         
-        result = estimate_pixels.invoke({
+        result = get_estimate_height.invoke({
             "content": long_text,
             "box_width_px": 200,
             "font_size_pt": 16,
@@ -254,13 +217,13 @@ class CanvaRequestViewTest(TestCase):
         
         self.assertEqual(response.status_code, 405)
     
-    @patch('presentation_maker.views.create_canva_functions')
-    def test_successful_request(self, mock_create):
+    @patch('presentation_maker.views.stream_canva_functions')
+    def test_successful_request(self, mock_stream):
         """Test successful canva request."""
-        mock_create.return_value = json.dumps([
-            {"type": "text", "content": "Hello World"},
-            {"type": "image", "ref": "https://example.com/image.jpg"}
-        ])
+        async def fake_stream(page_dims, card):
+            yield {"type": "element_update", "index": 0, "data": {"type": "text", "content": "Hello World"}}
+            yield {"type": "element_update", "index": 1, "data": {"type": "image", "ref": "https://example.com/image.jpg"}}
+        mock_stream.side_effect = fake_stream
         
         response = self.client.post(
             '/presentation_maker/canva_request',

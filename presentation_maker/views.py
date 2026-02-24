@@ -4,6 +4,7 @@ Views for the presentation_maker app.
 Handles HTTP endpoints for generating Canva design functions.
 """
 
+import asyncio
 import json
 import logging
 
@@ -11,7 +12,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .controllers import create_canva_functions
+from .controllers import stream_canva_functions
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +80,15 @@ def canvarequest(request):
         
         logger.info(f"Processing canva request for card: {card.get('title', 'Unknown')}")
         
-        # Generate Canva functions
-        functions_json = create_canva_functions(page_dimensions, card)
-        functions = json.loads(functions_json)
+        # Collect final validated elements from the streaming generator
+        async def _collect_elements():
+            elements = []
+            async for event in stream_canva_functions(page_dimensions, card):
+                if event.get("type") == "element_update":
+                    elements.append(event["data"])
+            return elements
+        
+        functions = asyncio.run(_collect_elements())
         
         logger.info(f"Successfully generated {len(functions)} functions")
         return JsonResponse(functions, safe=False)
